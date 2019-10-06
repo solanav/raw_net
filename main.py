@@ -18,7 +18,7 @@ class Forge():
         self.ihl     = 0b00000101 # always 20 for now
 
         # IPv4 calculated values
-        self.length  = b'\x00\x14' # Lenght
+        self.length  = b'\x00\x28' # Lenght
         self.check   = b'\x00\x00' # Checksum
         self.src     = bytearray() # Source IP
 
@@ -172,7 +172,7 @@ def main():
     # Forge packet
     f = Forge(interface)
     f.add_eth(b'\x6c\x88\x14\xc3\x47\x44', b'\xb4\x0c\x25\xe0\x40\x11')
-    f.add_ipv4(0, 0, 0, 0b010, 0, 255, "1.1.1.1")
+    f.add_ipv4(0, 0, 0, 0, 0, 255, "1.1.1.1")
     packet = f.generate()
 
     s.send(packet)
