@@ -5,9 +5,6 @@ class Forge():
     def __init__(self, interface):
         self.interface = interface
 
-        self.p_eth = bytearray(14) # Ethernet header
-        self.p_ipv4 = bytearray(20) # IPv4 header
-
         # Ethernet
         self.src_mac = bytearray(6)
         self.dst_mac = bytearray(6)
@@ -21,12 +18,12 @@ class Forge():
         # IPv4 calculated values
         self.length  = b'\x00\x14' # Lenght
         self.check   = b'\x00\x00' # Checksum
-        self.src     = socket.gethostbyname(socket.gethostname()) # Source IP
+        self.src     = bytearray() # Source IP
 
         # IPv4 user settings
         self.dscp    = 0 # Best effort
         self.ecn     = 0 # No ecn
-        self._id     = 0 # ID
+        self._id     = bytearray(2) # ID
         self.flags   = 0 # Fragmentation
         self.foff    = 0 # Fragment Offset
         self.ttl     = 0 # Max time to live (255)
@@ -68,41 +65,56 @@ class Forge():
         if type(dst) != str:
             raise ValueError('dst has to be a string')
 
+        # Get local ip
+        local_ip = netifaces.ifaddresses('wlp3s0')[2][0]['addr']
+        self.src = self.__ip_to_hex(local_ip)
+
+        # Get user values
         self.dscp  = dscp
         self.ecn   = ecn
-        self._id   = _id
+        self._id   = _id.to_bytes(2, byteorder='big')
         self.flags = flags
         self.foff  = foff
         self.ttl   = ttl
         self.dst   = self.__ip_to_hex(dst)
 
+    def generate_eth(self):
+        header = bytearray()
+        header.extend(self.dst_mac)
+        header.extend(self.src_mac)
+        header.extend(self._type)
+
+        return header
+
+    def generate_ipv4(self):
+        header = bytearray()
+        header.append(self.version | self.ihl)
+        header.append(self.dscp & 0x11111100 | self.ecn & 0x11)
+        header.extend(self.length)
+        header.extend(self._id)
+        header.append(self.flags >> 8 | self.foff >> 8) # parte de arriba de la palabra
+        header.append(self.flags & 0b11111111 | self.foff & 0b11111111) # parte de abajo
+        header.append(self.ttl)
+        header.extend(self.pro)
+        header.extend(self.check)
+        header.extend(self.src)
+        header.extend(self.dst)
+
+        return header
+
     def generate(self):
-        # Get local ip
-        local_ip = netifaces.ifaddresses('wlp3s0')[2][0]['addr']
-        self.src = self.__ip_to_hex(local_ip)
-        return "nothing yet"
+        packet = bytearray()
+        packet.extend(self.generate_eth())
+        packet.extend(self.generate_ipv4())
+
+        return packet
 
     def __str__(self):
-        return "nothing yet"
-
-ip_p = {
-    'ihl':     0b00000101, # 20 bytes
-    'dscp':    0b00000000, # Best effort
-    'ecn':     0b00000000, # No ecn
-    'length':  b'\x00\x14', # Lenght
-    'id':      b'\x00\x00', # ID
-    'flags':   0b0100000000000000, # Fragmentation
-    'foff':    0b0000000000000000, # Fragment Offset
-    'ttl':     b'\xff', # Max time to live (255)
-    'pro':     b'\x06', # TCP Protocol
-    'check':   b'\x00\x00', # Checksum
-    'src':     b'\xac\x11\x02\xec', # Source IP
-    'dst':     b'\x01\x01\x01\x01' # Destination IP
-}
-
-# bytes([ip_p['version'] | ip_p['ihl']])
-# bytes([ip_p['dscp'] & 0x11111100 | ip_p['ecn'] & 0x11])
-# bytes([(ip_p['flags'] >> 8 | ip_p['foff'] >> 8), (ip_p['flags'] & 0b11111111 | ip_p['foff'] & 0b11111111)])
+        _str = []
+        for i in self.generate():
+            _str.append('{:02X}'.format(i))
+        
+        return ' '.join(_str)
 
 def main():
     interface = 'wlp3s0'
@@ -116,7 +128,11 @@ def main():
     f.add_ipv4(0, 0, 0, 0b010, 0, 255, "1.1.1.1")
     packet = f.generate()
 
+    s.send(packet)
+
+    print(f)
+
     s.close()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
