@@ -1,6 +1,7 @@
 import socket
 import netifaces
 
+
 class Forge():
     def __init__(self, interface):
         self.interface = interface
@@ -10,46 +11,46 @@ class Forge():
         # Ethernet
         self.src_mac = bytearray(6)
         self.dst_mac = bytearray(6)
-        self._type   = b'\x08\x00'
+        self._type = b'\x08\x00'
 
         # IPv4 default values
-        self.version = 0b01000000 # Version 4
-        self.pro     = b'\x06' # TCP Protocol
-        self.ihl     = 0b00000101 # always 20 for now
+        self.version = 0b01000000  # Version 4
+        self.pro = b'\x06'  # TCP Protocol
+        self.ihl = 0b00000101  # always 20 for now
 
         # IPv4 calculated values
-        self.length  = b'\x00\x28' # Lenght
-        self.check   = b'\x00\x00' # Checksum
-        self.src     = bytearray() # Source IP
+        self.length = b'\x00\x28'  # Lenght
+        self.check = b'\x00\x00'  # Checksum
+        self.src = bytearray()  # Source IP
 
         # IPv4 user settings
-        self.dscp    = 0 # Best effort
-        self.ecn     = 0 # No ecn
-        self._id     = bytearray(2) # ID
-        self.flags   = 0 # Fragmentation
-        self.foff    = 0 # Fragment Offset
-        self.ttl     = 0 # Max time to live (255)
-        self.dst     = bytearray(4) # Destination IP
+        self.dscp = 0  # Best effort
+        self.ecn = 0  # No ecn
+        self._id = bytearray(2)  # ID
+        self.flags = 0  # Fragmentation
+        self.foff = 0  # Fragment Offset
+        self.ttl = 0  # Max time to live (255)
+        self.dst = bytearray(4)  # Destination IP
 
         # TCP default values
-        self.src_port = b'\xd0\x62' # 53346
-        self.dst_port = b'\x00\x50' # 80
-        self.seqnum   = b'\x00\x00\x00\x00'
-        self.acknum   = b'\x00\x00\x00\x00' 
-        self.dataoff  = 0b01010000 # Header size 5
-        self.reserved = 0b00000000 # Nop
-        self.ns       = 0b00000000 # No experimental things
-        self.cwr      = 0b00000000 # Not a response
-        self.ece      = 0b00000000 # Idk what ecn is so no
-        self.urg      = 0b00000000 # Not urgent?
-        self.ack      = 0b00000000 # Not an ack
-        self.psh      = 0b00000000 # Don't push?
-        self.rst      = 0b00000000 # Don't reset
-        self.syn      = 0b00000010 # Send a syn
-        self.fin      = 0b00000000 # Not my last packet (hehe) 
+        self.src_port = b'\xd0\x62'  # 53346
+        self.dst_port = b'\x00\x50'  # 80
+        self.seqnum = b'\x00\x00\x00\x00'
+        self.acknum = b'\x00\x00\x00\x00'
+        self.dataoff = 0b01010000  # Header size 5
+        self.reserved = 0b00000000  # Nop
+        self.ns = 0b00000000  # No experimental things
+        self.cwr = 0b00000000  # Not a response
+        self.ece = 0b00000000  # Idk what ecn is so no
+        self.urg = 0b00000000  # Not urgent?
+        self.ack = 0b00000000  # Not an ack
+        self.psh = 0b00000000  # Don't push?
+        self.rst = 0b00000000  # Don't reset
+        self.syn = 0b00000010  # Send a syn
+        self.fin = 0b00000000  # Not my last packet (hehe)
         self.win_size = b'\x00\x00'
         self.checksum = b'\x00\x00'
-        self.urg_ptr  = b'\x00\x00'
+        self.urg_ptr = b'\x00\x00'
 
     def __ip_to_hex(self, ip):
         hex_ip = []
@@ -74,7 +75,7 @@ class Forge():
 
         self.src_mac = bytearray(src_mac)
         self.dst_mac = bytearray(dst_mac)
-    
+
     def add_ipv4(self, dscp, ecn, _id, flags, foff, ttl, dst):
         if type(dscp) != int or dscp >= pow(2, 6):
             raise ValueError('dscp value too high')
@@ -98,17 +99,17 @@ class Forge():
             raise ValueError('dst has to be a string')
 
         # Get local ip
-        local_ip = netifaces.ifaddresses('wlp3s0')[2][0]['addr']
+        local_ip = netifaces.ifaddresses('enp3s0')[2][0]['addr']
         self.src = self.__ip_to_hex(local_ip)
 
         # Get user values
-        self.dscp  = dscp
-        self.ecn   = ecn
-        self._id   = _id.to_bytes(2, byteorder='big')
+        self.dscp = dscp
+        self.ecn = ecn
+        self._id = _id.to_bytes(2, byteorder='big')
         self.flags = flags
-        self.foff  = foff
-        self.ttl   = ttl
-        self.dst   = self.__ip_to_hex(dst)
+        self.foff = foff
+        self.ttl = ttl
+        self.dst = self.__ip_to_hex(dst)
 
     def generate_eth(self):
         header = bytearray()
@@ -124,8 +125,10 @@ class Forge():
         self.__add(self.dscp & 0x11111100 | self.ecn & 0x11)
         self.__add(self.length)
         self.__add(self._id)
-        self.__add(self.flags >> 8 | self.foff >> 8) # parte de arriba de la palabra
-        self.__add(self.flags & 0b11111111 | self.foff & 0b11111111) # parte de abajo
+        # parte de arriba de la palabra
+        self.__add(self.flags >> 8 | self.foff >> 8)
+        self.__add(self.flags & 0b11111111 | self.foff &
+                   0b11111111)  # parte de abajo
         self.__add(self.ttl)
         self.__add(self.pro)
         self.__add(self.check)
@@ -142,7 +145,8 @@ class Forge():
         self.__add(self.seqnum)
         self.__add(self.acknum)
         self.__add(self.dataoff | self.reserved | self.ns)
-        self.__add(self.cwr | self.ece | self.urg | self.ack | self.psh | self.rst | self.syn | self.fin)
+        self.__add(self.cwr | self.ece | self.urg | self.ack |
+                   self.psh | self.rst | self.syn | self.fin)
         self.__add(self.win_size)
         self.__add(self.checksum)
         self.__add(self.urg_ptr)
@@ -156,15 +160,43 @@ class Forge():
 
         return self.packet
 
+    def calculate_ip_checksum(self):
+        checksum = 0
+        ip_header = self.packet[14:34]
+
+        # Sum all bytes
+        for i in range(0, len(ip_header), 2):
+            checksum += (ip_header[i] << 8) + ip_header[i+1]
+
+        checksum = checksum & 0xffff
+        checksum += 2
+        checksum = 0xffff - checksum
+
+        return checksum
+
+    def calculate_tcp_checksum(self):
+        return 7009
+
+    def calculate_checksum(self):
+        ip_checksum = self.calculate_ip_checksum()
+        tcp_checksum = self.calculate_tcp_checksum()
+
+        self.packet[24] = ip_checksum >> 8
+        self.packet[25] = ip_checksum & 0xff
+
+        self.packet[50] = tcp_checksum >> 8
+        self.packet[51] = tcp_checksum & 0xff
+
     def __str__(self):
         _str = []
         for i in self.generate():
             _str.append('{:02X}'.format(i))
-        
+
         return ' '.join(_str)
 
+
 def main():
-    interface = 'wlp3s0'
+    interface = 'enp3s0'
 
     s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.IPPROTO_IP)
     s.bind((interface, 0))
@@ -175,11 +207,14 @@ def main():
     f.add_ipv4(0, 0, 0, 0, 0, 255, "1.1.1.1")
     packet = f.generate()
 
+    f.calculate_checksum()
+
     s.send(packet)
 
     print(f)
 
     s.close()
+
 
 if __name__ == '__main__':
     main()
